@@ -1,0 +1,6 @@
+w- Fryday, Razday, Eisday, Qoaday, Corday, Jyday, Zyrmday, Aiday, Buday, Peivday
+y- 591
+s- spring: newleaf 30, midspring 30, brightblossom 30
+s- summer: highsuns 30, midsummer 30, summerfall 30
+s- autumn: brightleaf 30, harvest moon 30, singlesun 30
+s- winter: winterfall 30, deepfrost 30, barrens 30
