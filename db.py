@@ -20,9 +20,9 @@ class Month:
         self.length = length
 
 class Calendar:
-    def __init__(self, name, currentYear, weekLength, weekDays, seasons, months, zeroDay, currentDay, yearLength):
+    def __init__(self, name, zeroYear, weekLength, weekDays, seasons, months, zeroDay, currentDay, yearLength):
         self.name = name
-        self.currentYear = currentYear
+        self.zeroYear = zeroYear
         self.weekLength = weekLength
         self.weekDays = weekDays
         self.seasons = seasons
@@ -32,7 +32,7 @@ class Calendar:
         self.yearLength = yearLength
     
     def printInfo(self):
-        print(self.currentYear)
+        print(self.zeroYear)
         print(self.yearLength)
         print(self.currentDay)
         print(self.weekLength)
@@ -75,7 +75,7 @@ def calendarParse(fileName, calendarLabel, fileData):
             myCalendar.weekDays = txt.split(',')
             myCalendar.weekLength = len(myCalendar.weekDays)
         if (delim == "y"):
-            myCalendar.currentYear = int(txt.strip())
+            myCalendar.zeroYear = int(txt.strip())
         if (delim == "s"):
             seasonName, seasonMonths = txt.split(":", 1)
             myCalendar.seasons.append(seasonName.strip().capitalize())
@@ -107,6 +107,8 @@ async def day(ctx):
     thisDay = myCalendar.currentDay
     thisMonth = "n/a"
     thisSeason = "n/a"
+    thisDay = thisDay % myCalendar.yearLength
+    thisYear = myCalendar.zeroYear + myCalendar.currentDay // myCalendar.yearLength
     for month in myCalendar.months:
         if (thisDay > month.length):
             thisDay -= month.length
@@ -114,30 +116,37 @@ async def day(ctx):
             thisMonth = month.name
             thisSeason = month.season
             break
-    sendStr = "It is " + thisMonth + " " + str(thisDay) + " in the season of " + thisSeason + " in the year " + str(myCalendar.currentYear)
+    sendStr = "It is " + thisMonth + " " + str(thisDay) + " in the season of " + thisSeason + " in the year " + str(thisYear)
     await ctx.send(sendStr)
 
 @bot.command(name='setDay', help='Changes current day to day specified')
 async def setDay(ctx, arg):
-    thisDay = int(arg)
-    dayCount, monthCount, seasonCount = 0, 0, 0
+    try:
+        constNewDay = int(arg)
+    except:
+        await ctx.send("Please enter a valid integer. ")
+        return
+    monthCount, seasonCount, yearCount = 0, 0, 0
     thisMonth = "n/a"
     thisSeason = "n/a"
+    thisYear = myCalendar.zeroYear
     constOriginalDay = myCalendar.currentDay
-    constDayDelta = thisDay - constOriginalDay
+    constDayDelta = constNewDay - constOriginalDay
     
+    thisDay = constNewDay
     curr = constOriginalDay
     dayDelta = constDayDelta
     #Task 1: Calculate weeks, months, seasons, years passed
     #Check to see if new day num has passed into a new year
     originYear = constOriginalDay // myCalendar.yearLength
-    destinationYear = thisDay // myCalendar.yearLength
+    destinationYear = (thisDay-1) // myCalendar.yearLength
     if (originYear < destinationYear):
         yearsPassed = destinationYear - originYear
         while (yearsPassed > 1):
+            yearCount += 1
             dayDelta -= myCalendar.yearLength
-            myCalendar.currentYear += 1
             monthCount += len(myCalendar.months)
+            seasonCount += len(myCalendar.seasons)
             yearsPassed -= 1
         # Find the day in current month, then normalize to the end of the month
         dayInMonth = constOriginalDay
@@ -149,39 +158,51 @@ async def setDay(ctx, arg):
                 break
         # Progress months to the end of the year
         while (myCalendar.months[myCalendar.findMonth(curr)] != myCalendar.months[len(myCalendar.months) - 1]):
-            print("Previous month: " + myCalendar.months[myCalendar.findMonth(curr)].name + ". ")
+            #print("Current month: " + myCalendar.months[myCalendar.findMonth(curr)].name)
+            #Season count might be off. Does it check correctly?
+            if(myCalendar.months[myCalendar.findMonth(curr)].season != myCalendar.months[myCalendar.findMonth(curr) + 1].season):
+                seasonCount += 1
+            dayDelta -= myCalendar.months[myCalendar.findMonth(curr) + 1].length
             curr += myCalendar.months[myCalendar.findMonth(curr) + 1].length
-            print("New month: " + myCalendar.months[myCalendar.findMonth(curr)].name + ".\n")
             monthCount += 1
-        
-    '''
-    for m in myCalendar.months:
-        if (curr > m.length):
-            curr -= m.length
-        else:'''
-            
-    '''calculate position in current month
-    subtract days left from dayDelta
-    while (delta - next month length > 0)
-        subtract next month length from delta
-        increment monthsPassed
-        check if season changed and increment seasonsPassed if so
-    calculate weeks passed
-    display month day, weeks passed, months passed, seasons passed, years passed
-    '''
+        # Day is now set to the final day of the last year. Next step is to progress to the first day of the new year
+        dayDelta -= 1
+        if (myCalendar.months[len(myCalendar.months)-1].season != myCalendar.months[0].season):
+            seasonCount += 1
+        myCalendar.currentMonth = myCalendar.months[0]
+        monthCount += 1
+        yearCount += 1
 
-    '''while(dayDelta > 0):
-        dayCount += 1
-        myCalendar.currentDay += 1
-        #check if week changes, increment week
-        #check if month changes, increment month
-        #check if seaoson changes, increment season'''
-        
-    sendStr = "Current day set to " + thisMonth + " " + str(thisDay) + " in the season of " + thisSeason + " in the year " + str(myCalendar.currentYear) + "\n" + str(constDayDelta) + " days have passed. "
+    # Now that we know we are on the current year, we set day and year
+    thisDay = constNewDay % myCalendar.yearLength
+    thisYear = myCalendar.zeroYear + constNewDay // myCalendar.yearLength
+ 
+    # Iterate through month list until we find current month
+    for mon in myCalendar.months:
+        if (thisDay > mon.length):
+            thisDay -= mon.length
+            monthCount += 1
+            if mon.season != myCalendar.months[myCalendar.findMonth(thisDay)].season: seasonCount += 1
+        else:
+            thisMonth = mon.name
+            thisSeason = mon.season
+            break
+    
+    # Dynamic print to only show months/season/year passage when greater than 0
+    sendStr = "Current day set to " + thisMonth + " " + str(thisDay) + " in the season of " + thisSeason + " in the year " + str(thisYear) + "\n" + str(constDayDelta) + " days have passed"
+    if (monthCount == 1):
+        sendStr += ", one month has passed"
+    elif (monthCount > 1):
+        sendStr += ", " + str(monthCount) + " months have passed"
     if (seasonCount == 1):
-        sendStr += "One season has passed. "
-    if (seasonCount > 1):
-        sendStr += str(seasonCount) + " seasons have passed. "
+        sendStr += ", one season has passed"
+    elif (seasonCount > 1):
+        sendStr += ", " + str(seasonCount) + " seasons have passed"
+    if (yearCount == 1):
+        sendStr += ", and one year has passed"
+    elif (yearCount > 1):
+        sendStr += ", and " + str(yearCount) + " years have passed"
+    sendStr += ". "
     myCalendar.currentDay = int(arg)
     await ctx.send(sendStr)
 
