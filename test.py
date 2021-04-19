@@ -1,6 +1,6 @@
 import re
 
-reg = re.compile("(.+) (\d+)")
+reg = re.compile(r"(.+) (\d+)")
 month = "harvest moon 30"
 month_data = reg.match(month)
 print(month_data.groups())

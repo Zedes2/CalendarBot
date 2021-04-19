@@ -85,7 +85,7 @@ def calendar_parse(file_name, calendar_label, file_data):
             my_calendar.seasons.append(season_name.strip().capitalize())
             season_months_months = season_months.split(",")
             for month in season_months_months:
-                reg = re.compile("(.+) (\d+)")
+                reg = re.compile(r"(.+) (\d+)")
                 month_data = reg.match(month)
                 m = Month(month_data[1].strip().capitalize(), season_name.strip().capitalize(), int(month_data[2]))
                 my_calendar.months.append(m)
